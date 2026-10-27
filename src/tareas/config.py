@@ -7,11 +7,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from platformdirs import user_config_path
+
 from tareas.acciones import TIPOS, Accion
 from tareas.errores import AccionNoEncontrada, AccionNoValida, ConfigError
 
 VERSION_ESQUEMA = 1
 RUTA_POR_DEFECTO = Path("acciones.json")
+RUTA_USUARIO = user_config_path("tareas") / "acciones.json"
 
 _NOMBRE_VALIDO = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 _CAMPOS_COMUNES = {"nombre", "descripcion", "tipo", "origen", "filtro", "confirmar"}
@@ -21,9 +24,17 @@ _CAMPOS_POR_TIPO = {
     "renombrar": {"plantilla"},
     "borrar": set(),
     "webp": set(),
+    "informe": set(),
+    "crear": {"modelo", "destino", "nombre_fichero"},
+    "incrementar": {"fichero", "patron"},
+    "comprimir": {"destino"},
 }
-_CAMPOS_OPCIONALES = {"webp": {"destino", "ancho_max", "calidad"}}
-_CAMPOS_FILTRO = {"extensiones", "patron", "mas_antiguo_que_dias", "recursivo"}
+_CAMPOS_OPCIONALES = {
+    "webp": {"destino", "ancho_max", "calidad"},
+    "crear": {"reemplazar"},
+    "comprimir": {"nombre_fichero"},
+}
+_CAMPOS_FILTRO = {"extensiones", "patron", "mas_antiguo_que_dias", "mas_grande_que_kb", "recursivo"}
 
 
 @dataclass(frozen=True)
@@ -54,10 +65,23 @@ class Configuracion:
         )
 
 
+def buscar_config(explicita: Path | None) -> Path:
+    """--config manda; si no, ./acciones.json; si tampoco existe, el de tu usuario.
+
+    Así la herramienta funciona desde cualquier carpeta (p. ej., la de la web).
+    """
+    if explicita is not None:
+        return explicita
+    if RUTA_POR_DEFECTO.exists() or not RUTA_USUARIO.exists():
+        return RUTA_POR_DEFECTO
+    return RUTA_USUARIO
+
+
 def _leer_json(ruta: Path) -> Any:
     if not ruta.exists():
         raise ConfigError(
-            f"No encuentro {ruta}. Créalo o indica otro con --config RUTA."
+            f"No encuentro {ruta}. Créalo, cópialo a {RUTA_USUARIO} "
+            "para usarlo desde cualquier carpeta o indica otro con --config RUTA."
         )
     if not ruta.is_file():
         raise ConfigError(f"{ruta} no es un fichero.")
@@ -160,20 +184,43 @@ def _validar_accion(accion: Any, donde: str, vistos: set[str]) -> list[str]:
     if isinstance(accion.get("plantilla"), str):
         errores.extend(_validar_plantilla(accion["plantilla"], f"{donde}.plantilla"))
 
+    if isinstance(accion.get("nombre_fichero"), str):
+        errores.extend(_validar_plantilla(accion["nombre_fichero"], f"{donde}.nombre_fichero"))
+
+    if "reemplazar" in accion:
+        reemplazar = accion["reemplazar"]
+        if not isinstance(reemplazar, dict) or not all(
+            isinstance(k, str) and k and isinstance(v, str) for k, v in reemplazar.items()
+        ):
+            errores.append(f"{donde}.reemplazar: debe ser un objeto {{\"texto viejo\": \"texto nuevo\"}}")
+        else:
+            for viejo, nuevo in reemplazar.items():
+                errores.extend(_validar_plantilla(nuevo, f"{donde}.reemplazar[{viejo!r}]", es_nombre=False))
+
+    if tipo == "incrementar" and isinstance(accion.get("patron"), str):
+        try:
+            if re.compile(accion["patron"]).groups < 1:
+                errores.append(f"{donde}.patron: necesita un grupo (\\d+) con el número a incrementar")
+        except re.error as e:
+            errores.append(f"{donde}.patron: expresión regular incorrecta ({e})")
+
     if "filtro" in accion:
         errores.extend(_validar_filtro(accion["filtro"], f"{donde}.filtro"))
     return errores
 
 
-def _validar_plantilla(plantilla: str, donde: str) -> list[str]:
+def _validar_plantilla(plantilla: str, donde: str, es_nombre: bool = True) -> list[str]:
     try:
         resultado = plantilla.format(
-            fecha=datetime(2026, 1, 1), n=1, ext=".txt", nombre="Ejemplo", slug="ejemplo"
+            fecha=datetime(2026, 1, 1), n=1, ext=".txt", nombre="Ejemplo", slug="ejemplo",
+            texto="Ejemplo", carpeta="ejemplo",
         )
     except (KeyError, IndexError) as e:
-        return [f"{donde}: variable desconocida {e} (usa fecha, n, ext, nombre, slug)"]
+        return [f"{donde}: variable desconocida {e} (usa fecha, n, ext, nombre, slug, texto, carpeta)"]
     except ValueError as e:
         return [f"{donde}: formato incorrecto ({e})"]
+    if not es_nombre:
+        return []
     if not resultado.strip() or any(sep in resultado for sep in ("/", "\\")):
         return [f"{donde}: debe dar un nombre de fichero, sin / ni \\"]
     return []
