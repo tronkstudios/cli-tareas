@@ -13,8 +13,8 @@ from rich.markup import escape
 from rich.table import Table
 
 from tareas import __version__
-from tareas.acciones import Operacion
-from tareas.config import RUTA_POR_DEFECTO, Configuracion
+from tareas.acciones import Operacion, tamano_legible
+from tareas.config import Configuracion, buscar_config
 from tareas.errores import ConfigError, ErrorUso, TareasError
 from tareas.motor import Motor, Plan
 
@@ -44,22 +44,28 @@ def _sin_traceback() -> Iterator[None]:
 
 
 def _cargar(ctx: typer.Context) -> Configuracion:
-    return Configuracion.desde_fichero(ctx.obj["config"])
+    return Configuracion.desde_fichero(buscar_config(ctx.obj["config"]))
 
 
 @app.callback()
 def principal(
     ctx: typer.Context,
     config: Annotated[
-        Path,
-        typer.Option("--config", "-c", help="Fichero de acciones a usar.", envvar="TAREAS_CONFIG"),
-    ] = RUTA_POR_DEFECTO,
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Fichero de acciones. Por defecto: ./acciones.json y, si no está, el de tu usuario.",
+            envvar="TAREAS_CONFIG",
+            show_default=False,
+        ),
+    ] = None,
 ) -> None:
     """Ejecuta sobre tus ficheros las acciones que defines en acciones.json.
 
     Códigos de salida: 0 bien · 1 fallo al ejecutar · 2 error de uso · 3 configuración inválida.
     """
-    ctx.obj = {"config": config.expanduser()}
+    ctx.obj = {"config": config.expanduser() if config else None}
 
 
 @app.command()
@@ -100,7 +106,7 @@ def listar(
         tabla.add_row(
             f"[bold blue]{escape(fila['nombre'])}/[/]" if es_carpeta else escape(fila["nombre"]),
             fila["tipo"],
-            "" if es_carpeta else _tamano_legible(fila["tamano_bytes"]),
+            "" if es_carpeta else tamano_legible(fila["tamano_bytes"]),
             fila["modificado"].replace("T", " ")[:16],
         )
     salida.print(tabla)
@@ -116,16 +122,6 @@ def _describir(ruta: Path) -> dict:
         "tamano_bytes": None if es_carpeta else info.st_size,
         "modificado": datetime.fromtimestamp(info.st_mtime).isoformat(timespec="seconds"),
     }
-
-
-def _tamano_legible(n: float) -> str:
-    if n < 1024:
-        return f"{n:.0f} B"
-    for unidad in ("KB", "MB", "GB"):
-        n /= 1024
-        if n < 1024 or unidad == "GB":
-            break
-    return f"{n:.1f} {unidad}"
 
 
 @app.command("acciones")
@@ -167,14 +163,17 @@ def ejecutar(
     ] = None,
     simular: Annotated[bool, typer.Option("--simular", help="Enseña qué haría, sin tocar nada.")] = False,
     si: Annotated[bool, typer.Option("--si", help="No pregunta antes de actuar (para scripts).")] = False,
+    texto: Annotated[
+        str | None, typer.Option("--texto", "-t", help="Título para las acciones que crean ficheros.")
+    ] = None,
 ) -> None:
     """Ejecuta la acción NOMBRE sobre CARPETA."""
     with _sin_traceback():
         accion = _cargar(ctx).buscar(nombre)
-        plan = Motor().planificar(accion, carpeta)
+        plan = Motor().planificar(accion, carpeta, texto)
 
-    _mostrar_plan(plan, simulacion=simular)
-    if simular or not plan.pendientes:
+    _mostrar_plan(plan, simulacion=simular and not accion.solo_lectura)
+    if simular or accion.solo_lectura or not plan.pendientes:
         return
 
     if accion.confirmar and not si:
@@ -203,10 +202,20 @@ def _mostrar_plan(plan: Plan, simulacion: bool) -> None:
     cabecera = "[bold yellow]SIMULACIÓN[/] · " if simulacion else ""
     salida.print(f"{cabecera}[bold]{escape(accion.nombre)}[/] ({accion.tipo}) en {escape(str(plan.carpeta))}")
     if not plan.operaciones:
-        salida.print("Ningún fichero coincide con el filtro: nada que hacer.")
+        if accion.solo_lectura:
+            salida.print("[green]✓[/green] Ningún fichero cumple el filtro.")
+        else:
+            salida.print("Ningún fichero coincide con el filtro: nada que hacer.")
+        return
+    if accion.solo_lectura:
+        for op in plan.operaciones:
+            salida.print(f"  [yellow]![/] {escape(_relativa(op.origen, plan.carpeta))}  {escape(op.detalle or '')}")
+        salida.print(f"{len(plan.operaciones)} ficheros.")
         return
     for op in plan.operaciones:
         texto = _describir_operacion(op, plan.carpeta)
+        if op.detalle:
+            texto += f" [dim]({escape(op.detalle)})[/]"
         if op.omitida:
             salida.print(f"  [yellow]·[/] {texto} [yellow](se omite: {escape(op.omitida)})[/]")
         else:
@@ -220,6 +229,8 @@ def _describir_operacion(op: Operacion, carpeta: Path) -> str:
     origen = escape(_relativa(op.origen, carpeta))
     if op.destino is None:
         return origen
+    if op.origen.is_dir():
+        return f"toda la carpeta → {escape(str(op.destino))}"
     if op.destino.parent == op.origen.parent:
         return f"{origen} → {escape(op.destino.name)}"
     return f"{origen} → {escape(str(op.destino))}"

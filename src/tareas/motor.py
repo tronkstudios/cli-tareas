@@ -41,21 +41,26 @@ class Motor:
     def __init__(self, ahora: datetime | None = None):
         self._ahora = ahora or datetime.now()
 
-    def planificar(self, accion: Accion, carpeta_orden: Path | None = None) -> Plan:
+    def planificar(
+        self, accion: Accion, carpeta_orden: Path | None = None, texto: str | None = None
+    ) -> Plan:
         carpeta = accion.carpeta_de_trabajo(carpeta_orden)
         if not carpeta.exists():
             raise ErrorUso(f"La carpeta {carpeta} no existe.")
         if not carpeta.is_dir():
             raise ErrorUso(f"{carpeta} no es una carpeta.")
         try:
-            ficheros = accion.seleccionar(carpeta, self._ahora)
+            operaciones = accion.preparar(carpeta, self._ahora, texto)
         except PermissionError:
             raise ErrorUso(f"No tengo permiso para leer {carpeta}.") from None
-        return Plan(accion, carpeta, accion.planificar(ficheros, carpeta))
+        except UnicodeDecodeError:
+            raise ErrorUso("Un fichero que tengo que leer no está en UTF-8.") from None
+        return Plan(accion, carpeta, operaciones)
 
     @staticmethod
     def ejecutar(plan: Plan) -> Resultado:
         """Aplica cada operación pendiente. Un fallo no detiene las demás."""
+        assert not plan.accion.solo_lectura, "un informe no se ejecuta"
         resultado = Resultado()
         for op in plan.pendientes:
             try:
