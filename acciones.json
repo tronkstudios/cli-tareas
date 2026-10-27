@@ -2,10 +2,59 @@
   "version": 1,
   "acciones": [
     {
+      "nombre": "nuevo-prompt",
+      "descripcion": "Crea docs/prompts/NN-titulo.md desde plantilla.md con el número siguiente y la fecha de hoy (usa --texto)",
+      "tipo": "crear",
+      "modelo": "docs/prompts/plantilla.md",
+      "destino": "docs/prompts",
+      "nombre_fichero": "{n:02}-{slug}.md",
+      "reemplazar": {
+        "# Título del prompt": "# {texto}",
+        "- **Fecha:**": "- **Fecha:** {fecha:%d/%m/%Y}"
+      }
+    },
+    {
+      "nombre": "subir-cache",
+      "descripcion": "Suma 1 a CACHE_VERSION en sw.js para que los visitantes reciban la versión nueva",
+      "tipo": "incrementar",
+      "fichero": "sw.js",
+      "patron": "const CACHE_VERSION = (\\d+);"
+    },
+    {
+      "nombre": "revisar-pesos",
+      "descripcion": "Avisa de imágenes y vídeos de más de 200 KB antes de subir (no toca nada)",
+      "tipo": "informe",
+      "filtro": {
+        "extensiones": [
+          ".png",
+          ".jpg",
+          ".jpeg",
+          ".webp",
+          ".gif",
+          ".mp4",
+          ".webm"
+        ],
+        "mas_grande_que_kb": 200,
+        "recursivo": true
+      }
+    },
+    {
+      "nombre": "copia-seguridad",
+      "descripcion": "Guarda la carpeta en ~/Copias/tronkstudios/ como .zip con fecha y hora (sin .git)",
+      "tipo": "comprimir",
+      "destino": "~/Copias/tronkstudios"
+    },
+    {
       "nombre": "capturas-webp",
       "descripcion": "Convierte capturas PNG/JPG a WebP de 1280 px como máximo en la subcarpeta webp/",
       "tipo": "webp",
-      "filtro": { "extensiones": [".png", ".jpg", ".jpeg"] },
+      "filtro": {
+        "extensiones": [
+          ".png",
+          ".jpg",
+          ".jpeg"
+        ]
+      },
       "destino": "webp",
       "ancho_max": 1280,
       "calidad": 80
@@ -14,7 +63,14 @@
       "nombre": "miniaturas-juegos",
       "descripcion": "Crea las miniaturas de 480 px de las tarjetas en mini/ (como img/juegos/mini)",
       "tipo": "webp",
-      "filtro": { "extensiones": [".png", ".jpg", ".jpeg", ".webp"] },
+      "filtro": {
+        "extensiones": [
+          ".png",
+          ".jpg",
+          ".jpeg",
+          ".webp"
+        ]
+      },
       "destino": "mini",
       "ancho_max": 480,
       "calidad": 75
@@ -29,21 +85,36 @@
       "nombre": "archivar-originales",
       "descripcion": "Saca los PNG/JPG/PSD originales a originales/ para que no acaben en el repo",
       "tipo": "mover",
-      "filtro": { "extensiones": [".png", ".jpg", ".jpeg", ".psd"] },
+      "filtro": {
+        "extensiones": [
+          ".png",
+          ".jpg",
+          ".jpeg",
+          ".psd"
+        ]
+      },
       "destino": "originales"
     },
     {
       "nombre": "ordenar-demos",
       "descripcion": "Mueve los vídeos de demo (.mp4, .webm) a la carpeta video/",
       "tipo": "mover",
-      "filtro": { "extensiones": [".mp4", ".webm"] },
+      "filtro": {
+        "extensiones": [
+          ".mp4",
+          ".webm"
+        ]
+      },
       "destino": "video"
     },
     {
       "nombre": "limpiar-basura",
       "descripcion": "Borra .DS_Store, Thumbs.db, .tmp y .bak de todo el proyecto (sin entrar en .git)",
       "tipo": "borrar",
-      "filtro": { "patron": "^(\\.DS_Store|Thumbs\\.db|desktop\\.ini)$|\\.(tmp|bak)$", "recursivo": true },
+      "filtro": {
+        "patron": "^(\\.DS_Store|Thumbs\\.db|desktop\\.ini)$|\\.(tmp|bak)$",
+        "recursivo": true
+      },
       "confirmar": true
     }
   ]
