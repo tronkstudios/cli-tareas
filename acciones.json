@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "capturas-webp",
+      "descripcion": "Convierte capturas PNG/JPG a WebP de 1280 px como máximo en la subcarpeta webp/",
+      "tipo": "webp",
+      "filtro": { "extensiones": [".png", ".jpg", ".jpeg"] },
+      "destino": "webp",
+      "ancho_max": 1280,
+      "calidad": 80
+    },
+    {
+      "nombre": "miniaturas-juegos",
+      "descripcion": "Crea las miniaturas de 480 px de las tarjetas en mini/ (como img/juegos/mini)",
+      "tipo": "webp",
+      "filtro": { "extensiones": [".png", ".jpg", ".jpeg", ".webp"] },
+      "destino": "mini",
+      "ancho_max": 480,
+      "calidad": 75
+    },
+    {
+      "nombre": "nombres-web",
+      "descripcion": "Deja los nombres listos para la web: sin espacios, tildes ni mayúsculas",
+      "tipo": "renombrar",
+      "plantilla": "{slug}{ext}"
+    },
+    {
+      "nombre": "archivar-originales",
+      "descripcion": "Saca los PNG/JPG/PSD originales a originales/ para que no acaben en el repo",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".png", ".jpg", ".jpeg", ".psd"] },
+      "destino": "originales"
+    },
+    {
+      "nombre": "ordenar-demos",
+      "descripcion": "Mueve los vídeos de demo (.mp4, .webm) a la carpeta video/",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".mp4", ".webm"] },
+      "destino": "video"
+    },
+    {
+      "nombre": "limpiar-basura",
+      "descripcion": "Borra .DS_Store, Thumbs.db, .tmp y .bak de todo el proyecto (sin entrar en .git)",
+      "tipo": "borrar",
+      "filtro": { "patron": "^(\\.DS_Store|Thumbs\\.db|desktop\\.ini)$|\\.(tmp|bak)$", "recursivo": true },
+      "confirmar": true
+    }
+  ]
+}
