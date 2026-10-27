@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.0 · 27 de octubre de 2026
+
+Primera versión estable: todo lo que pide el proyecto salvo la capa de IA,
+que llegará en la 1.1.
+
+### Arreglado
+- Windows: la CLI ya no se cierra con `UnicodeEncodeError` al escribir ✓ o →
+  en consolas cp1252 (lo detectó GitHub Actions).
+
+### Añadido
+- `docs/guia-del-codigo.md`: cómo viaja una orden, qué hace cada fichero y
+  qué demuestra cada prueba.
+- Plantilla de PR y prompts clave en `docs/prompts.md`.
+- 27 pruebas que pasan en Ubuntu, Windows y macOS.
+
 ## 0.1.0 · 27 de octubre de 2026
 
 - Órdenes `version`, `listar` (tabla o `--json`), `acciones`, `validar` y `ejecutar` (`--simular`, `--si`).

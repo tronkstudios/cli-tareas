@@ -1,6 +1,6 @@
 [project]
 name = "tareas"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI que ordena, renombra, copia y limpia ficheros con acciones definidas en acciones.json"
 readme = "README.md"
 authors = [
