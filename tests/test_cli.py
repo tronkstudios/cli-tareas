@@ -49,3 +49,18 @@ def test_ejecutar_simular_y_de_verdad(escribir_config, tmp_path: Path):
 
     con_si = runner.invoke(app, ["-c", str(ruta), "ejecutar", "limpiar", str(tmp_path), "--si"])
     assert con_si.exit_code == 0 and not (tmp_path / "a.tmp").exists()
+
+
+def test_consola_cp1252_no_revienta_con_simbolos():
+    """En Windows con consola cp1252, ✓ y → hacían saltar UnicodeEncodeError."""
+    import os
+    import subprocess
+    import sys
+
+    acciones = Path(__file__).parent.parent / "acciones.json"
+    resultado = subprocess.run(
+        [sys.executable, "-m", "tareas", "-c", str(acciones), "validar"],
+        env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+        capture_output=True,
+    )
+    assert resultado.returncode == 0, resultado.stderr.decode("cp1252", "replace")

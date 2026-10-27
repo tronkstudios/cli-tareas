@@ -18,6 +18,20 @@ from tareas.config import Configuracion, buscar_config
 from tareas.errores import ConfigError, ErrorUso, TareasError
 from tareas.motor import Motor, Plan
 
+def _salida_sin_errores_de_codificacion() -> None:
+    """En consolas de Windows que no son UTF-8 (cp1252), ✓ y → harían saltar un error.
+
+    Con errors="replace" se escriben como «?» y el programa sigue.
+    """
+    for flujo in (sys.stdout, sys.stderr):
+        try:
+            flujo.reconfigure(errors="replace")
+        except (AttributeError, ValueError):
+            pass  # flujo sustituido (pruebas, tuberías raras): se deja como está
+
+
+_salida_sin_errores_de_codificacion()
+
 app = typer.Typer(
     no_args_is_help=True,
     rich_markup_mode="rich",
