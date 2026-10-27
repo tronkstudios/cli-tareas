@@ -1,12 +1,12 @@
 # AGENTS.md · cli-tareas
 
 CLI `tareas` para el trabajo diario de Tronk Studios: ejecuta sobre una carpeta
-las acciones definidas en `acciones.json` (WebP, miniaturas, nombres para la
-web, ordenar vídeos, limpiar basura).
+las acciones definidas en `acciones.json` (prompt nuevo, versión de la caché,
+pesos, copias, WebP, miniaturas, nombres para la web, vídeos, basura).
 
 ## Stack
 
-- Python 3.12, Typer (interfaz), Rich (tablas y colores), Pillow (WebP), pytest.
+- Python 3.12, Typer (interfaz), Rich (tablas y colores), Pillow (WebP), platformdirs (carpeta de configuración del usuario), pytest.
 - uv para todo: `uv sync`, `uv run tareas …`, `uv run pytest -q`.
 
 ## Órdenes del proyecto
@@ -23,8 +23,8 @@ web, ordenar vídeos, limpiar basura).
 
 - `src/tareas/cli.py`: solo interfaz (Typer, Rich, códigos de salida). No hace trabajo.
 - `src/tareas/motor.py`: `Motor.planificar()` (no toca el disco) y `Motor.ejecutar()`.
-- `src/tareas/acciones.py`: una clase por tipo (`mover`, `copiar`, `renombrar`, `borrar`, `webp`), registradas en `TIPOS`.
-- `src/tareas/config.py`: lee y valida `acciones.json`; cada error empieza por la ruta del campo.
+- `src/tareas/acciones.py`: una clase por tipo (`mover`, `copiar`, `renombrar`, `borrar`, `webp`, `informe`, `crear`, `incrementar`, `comprimir`), registradas en `TIPOS`. Las que trabajan fichero a fichero implementan `planificar()`; las demás redefinen `preparar()`.
+- `src/tareas/config.py`: busca (`--config` → `./acciones.json` → el del usuario), lee y valida `acciones.json`; cada error empieza por la ruta del campo.
 - `src/tareas/errores.py`: `TareasError` (1), `ErrorUso` (2), `ConfigError` (3), `AccionNoValida`, `AccionNoEncontrada`.
 
 ## Normas
