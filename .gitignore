@@ -1,0 +1,16 @@
+# Secretos: nunca a git
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Entornos virtuales y cachés
+.venv
+.pytest_cache/
