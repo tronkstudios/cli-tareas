@@ -13,7 +13,8 @@ cd ~/tronkstudios.github.io
 
 tareas ejecutar nuevo-prompt -t "Tronker en Discord"   # docs/prompts/19-tronker-en-discord.md
 # … trabajas en la web …
-tareas ejecutar revisar-pesos                          # ¿algo pesa más de 200 KB?
+tareas ejecutar revisar-pesos                          # ¿alguna imagen pasa de 200 KB?
+tareas ejecutar revisar-videos                         # ¿algún vídeo pasa de 300 KB?
 tareas ejecutar subir-cache                            # sw.js: CACHE_VERSION 6 → 7
 tareas ejecutar copia-seguridad                        # ~/Copias/tronkstudios/…zip
 ```
@@ -82,13 +83,14 @@ mkdir -p ~/.config/tareas && cp acciones.json ~/.config/tareas/   # Linux
 
 ## Las acciones de Tronk Studios
 
-Las cuatro primeras se lanzan desde la carpeta de la web:
+Las cinco primeras se lanzan desde la carpeta de la web:
 
 | Acción | Tipo | Qué hace |
 | --- | --- | --- |
 | `nuevo-prompt` | crear | `-t "Título"` → `docs/prompts/19-titulo.md` desde `plantilla.md`, con título y fecha puestos. |
 | `subir-cache` | incrementar | Suma 1 a `CACHE_VERSION` en `sw.js`. |
-| `revisar-pesos` | informe | Lista imágenes y vídeos de más de 200 KB, de mayor a menor. No toca nada. |
+| `revisar-pesos` | informe | Lista imágenes de más de 200 KB, de mayor a menor. No toca nada. |
+| `revisar-videos` | informe | Lista vídeos de más de 300 KB (el límite de la web). No toca nada. |
 | `copia-seguridad` | comprimir | `.zip` de la carpeta con fecha y hora en `~/Copias/tronkstudios/`, sin `.git`. |
 | `capturas-webp` | webp | PNG/JPG → WebP de 1280 px como máximo, en `webp/`. |
 | `miniaturas-juegos` | webp | Miniaturas de 480 px para las tarjetas, en `mini/` (como `img/juegos/mini`). |

@@ -22,7 +22,7 @@
     },
     {
       "nombre": "revisar-pesos",
-      "descripcion": "Avisa de imágenes y vídeos de más de 200 KB antes de subir (no toca nada)",
+      "descripcion": "Avisa de imágenes de más de 200 KB antes de subir (no toca nada)",
       "tipo": "informe",
       "filtro": {
         "extensiones": [
@@ -30,11 +30,22 @@
           ".jpg",
           ".jpeg",
           ".webp",
-          ".gif",
+          ".gif"
+        ],
+        "mas_grande_que_kb": 200,
+        "recursivo": true
+      }
+    },
+    {
+      "nombre": "revisar-videos",
+      "descripcion": "Avisa de vídeos de más de 300 KB, el límite del ADR 0003 de la web (no toca nada)",
+      "tipo": "informe",
+      "filtro": {
+        "extensiones": [
           ".mp4",
           ".webm"
         ],
-        "mas_grande_que_kb": 200,
+        "mas_grande_que_kb": 300,
         "recursivo": true
       }
     },

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 · 16 de noviembre de 2026
+
+### Cambiado
+- `revisar-pesos` solo mira imágenes (200 KB) y la nueva `revisar-videos`
+  mira los vídeos con el límite de la web (300 KB). Al usar la CLI sobre la
+  web, avisaba de un vídeo que ya cumplía. Solo cambia `acciones.json`.
+
 ## 1.1.0 · 16 de noviembre de 2026 · Capa de IA
 
 ### Añadido
