@@ -116,6 +116,37 @@
         "recursivo": true
       },
       "confirmar": true
+    },
+    {
+      "nombre": "borrador-changelog",
+      "descripcion": "La IA convierte los últimos commits en un borrador de entrada del CHANGELOG",
+      "tipo": "ia",
+      "entrada": "git-log",
+      "commits": 30,
+      "instrucciones": "Eres el editor del CHANGELOG de la web de Tronk Studios. Con los commits que te paso, escribe en español una entrada en Markdown con las secciones «#### Añadido», «#### Cambiado» y «#### Arreglado» (omite las vacías). Una viñeta por cambio, pensada para quien visita la web, no para programadores: sin hashes, sin nombres de ficheros salvo que importen. No inventes nada que no esté en los commits. Devuelve solo el Markdown.",
+      "salida": "docs/borradores/changelog-{fecha:%Y-%m-%d_%H%M}.md"
+    },
+    {
+      "nombre": "mensaje-commit",
+      "descripcion": "La IA propone un mensaje de commit a partir de los cambios sin commitear (en pantalla)",
+      "tipo": "ia",
+      "entrada": "git-diff",
+      "max_caracteres": 20000,
+      "instrucciones": "Propón un mensaje de commit en español para estos cambios: una primera línea de 72 caracteres como máximo, en imperativo o describiendo el resultado (como «Tronk Survivors: vuelven los stickmen»), una línea en blanco y, si hace falta, 2-4 viñetas con el porqué. Sin prefijos tipo feat: ni emojis. Devuelve solo el mensaje."
+    },
+    {
+      "nombre": "resumir-documentos",
+      "descripcion": "La IA resume cada .md o .txt de la carpeta en un fichero .resumen.md a su lado",
+      "tipo": "ia",
+      "entrada": "ficheros",
+      "filtro": {
+        "extensiones": [
+          ".md",
+          ".txt"
+        ]
+      },
+      "instrucciones": "Resume en español el documento que te paso en 5 viñetas como máximo: qué se necesitaba, qué se decidió y qué queda pendiente. Devuelve solo las viñetas en Markdown.",
+      "salida": "{nombre}.resumen.md"
     }
   ]
 }
