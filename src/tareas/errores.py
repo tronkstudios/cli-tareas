@@ -33,3 +33,15 @@ class AccionNoValida(ConfigError):
 
 class AccionNoEncontrada(ErrorUso):
     """Se pidió ejecutar una acción que no está en acciones.json."""
+
+
+class IAError(TareasError):
+    """Algo impide usar el modelo de IA. Las acciones sin IA siguen funcionando."""
+
+
+class IASinConfigurar(IAError):
+    """Faltan TAREAS_IA_URL, TAREAS_IA_MODELO o TAREAS_IA_CLAVE, o la clave no vale."""
+
+
+class IASinConexion(IAError):
+    """No hay red, el servidor no responde o el modelo no está disponible."""
