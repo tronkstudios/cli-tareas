@@ -77,3 +77,35 @@ haz todo menos la ia
 ### Qué hicimos con la respuesta
 - Aceptado: `docs/guia-del-codigo.md` para poder explicar cada fichero y
   cada prueba, plantilla de PR, trabajo en ramas y PR, y release v1.0.0.
+
+## 5. Capa de IA
+
+- **Fecha:** 10-16/11/2026
+- **Herramienta:** Claude Code (OpenCode no pudo usarse, ver abajo)
+- **PR:** rama `feature/capa-ia`
+
+### Qué necesitábamos
+Acciones con IA, la clave fuera del repo y que sin red todo siga funcionando.
+
+### Qué pasó con OpenCode
+OpenCode «se quedaba pensando». Al depurarlo vimos que el servidor del centro
+usa un certificado propio (`curl: self-signed certificate in certificate
+chain`, solucionado con `NODE_EXTRA_CA_CERTS`) y que después los modelos
+devolvían `503 No server is available` (los `Qwen38-DualSpark-*`) o no
+respondían en 40 s (los `Thinking`). Como no avanzaba, la capa de IA se hizo
+con Claude Code.
+
+### El prompt
+```
+hazme tú todo lo que falta del CLI
+```
+
+### Qué hicimos con la respuesta
+- Aceptado: `ProveedorIA` abstracto con `urllib` (ADR 0002), tipo `ia` con
+  las instrucciones en `acciones.json`, `comprobar-ia`, `TAREAS_IA_CA` para el
+  certificado del centro, mensajes de una línea para 401/404/503/timeout y
+  pruebas con un servidor local de mentira.
+- Aprendido de los errores reales: los 503 y el certificado propio salen en
+  los mensajes de la CLI porque fueron justo los problemas que tuvimos.
+- Cambiado: _(rellenar)_
+- Pendiente: probarlo contra el servidor del centro cuando los modelos respondan.

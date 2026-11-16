@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0 · 16 de noviembre de 2026 · Capa de IA
+
+### Añadido
+- Tipo de acción `ia`: manda ficheros de texto, los últimos commits o los
+  cambios sin commitear a un modelo con las instrucciones escritas en
+  `acciones.json`, y guarda la respuesta (o la enseña en pantalla).
+- Acciones `borrador-changelog`, `mensaje-commit` y `resumir-documentos`.
+- `tareas comprobar-ia` y columna «IA» en `tareas acciones`.
+- `ia.py`: `ProveedorIA` abstracto y `ProveedorOpenAI` (API compatible con
+  OpenAI, sin SDK), configurado con `TAREAS_IA_*` o un `.env`
+  (`.env.example` documentado). Admite el certificado propio del centro
+  (`TAREAS_IA_CA`) sin desactivar la verificación.
+- ADR 0002 sobre el proveedor de IA.
+
+### Modo sin red
+- Sin configuración, sin red, con la clave mal o con el modelo caído (503),
+  la acción lo dice en una línea y sale con código 1; el resto de acciones
+  no carga ni necesita la IA. `--simular` nunca llama al modelo.
+
 ## 1.0.0 · 27 de octubre de 2026
 
 Primera versión estable: todo lo que pide el proyecto salvo la capa de IA,
