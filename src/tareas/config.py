@@ -28,12 +28,15 @@ _CAMPOS_POR_TIPO = {
     "crear": {"modelo", "destino", "nombre_fichero"},
     "incrementar": {"fichero", "patron"},
     "comprimir": {"destino"},
+    "ia": {"instrucciones"},
 }
 _CAMPOS_OPCIONALES = {
     "webp": {"destino", "ancho_max", "calidad"},
     "crear": {"reemplazar"},
     "comprimir": {"nombre_fichero"},
+    "ia": {"entrada", "commits", "salida", "max_caracteres"},
 }
+ENTRADAS_IA = ("ficheros", "git-log", "git-diff")
 _CAMPOS_FILTRO = {"extensiones", "patron", "mas_antiguo_que_dias", "mas_grande_que_kb", "recursivo"}
 
 
@@ -172,6 +175,9 @@ def _validar_accion(accion: Any, donde: str, vistos: set[str]) -> list[str]:
         if tipo == "webp":
             errores.append(f"{donde}.destino: debe ser una ruta (texto)")
 
+    if tipo == "ia":
+        errores.extend(_validar_ia(accion, donde))
+
     for campo, minimo, maximo in (("ancho_max", 1, 20000), ("calidad", 1, 100)):
         if campo in accion:
             valor = accion[campo]
@@ -206,6 +212,26 @@ def _validar_accion(accion: Any, donde: str, vistos: set[str]) -> list[str]:
 
     if "filtro" in accion:
         errores.extend(_validar_filtro(accion["filtro"], f"{donde}.filtro"))
+    return errores
+
+
+def _validar_ia(accion: dict, donde: str) -> list[str]:
+    errores = []
+    if accion.get("entrada", "ficheros") not in ENTRADAS_IA:
+        errores.append(f"{donde}.entrada: {accion['entrada']!r} no es válida (usa: {', '.join(ENTRADAS_IA)})")
+    for campo, minimo, maximo in (("commits", 1, 500), ("max_caracteres", 100, 1_000_000)):
+        if campo in accion:
+            valor = accion[campo]
+            if isinstance(valor, bool) or not isinstance(valor, int) or not minimo <= valor <= maximo:
+                errores.append(f"{donde}.{campo}: debe ser un entero entre {minimo} y {maximo}")
+    if "salida" in accion:
+        salida = accion["salida"]
+        if not isinstance(salida, str) or not salida.strip():
+            errores.append(f"{donde}.salida: debe ser una ruta (texto); quítala para ver la respuesta en pantalla")
+        else:
+            errores.extend(_validar_plantilla(salida, f"{donde}.salida", es_nombre=False))
+            if ".." in Path(salida).parts:
+                errores.append(f"{donde}.salida: no puede usar «..»")
     return errores
 
 

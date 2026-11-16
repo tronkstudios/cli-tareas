@@ -6,15 +6,19 @@ y APLICAR una operación concreta. Quién decide cuándo aplicar es el Motor.
 
 import re
 import shutil
+import subprocess
 import unicodedata
 import zipfile
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from tareas.errores import AccionNoValida, ErrorUso
+
+if TYPE_CHECKING:  # solo para los tipos: ia.py no se carga hasta que hace falta
+    from tareas.ia import ProveedorIA
 
 
 @dataclass(frozen=True)
@@ -77,6 +81,7 @@ class Accion(ABC):
 
     tipo: ClassVar[str]
     solo_lectura: ClassVar[bool] = False  # True: solo informa, nunca toca el disco
+    necesita_ia: ClassVar[bool] = False  # True: aplicar() recibe un ProveedorIA
 
     @staticmethod
     def desde_dict(datos: dict[str, Any]) -> "Accion":
@@ -461,6 +466,108 @@ class AccionComprimir(Accion):
             temporal.unlink(missing_ok=True)
 
 
+@dataclass(frozen=True)
+class AccionIA(Accion):
+    """Manda un texto a un modelo de IA con las instrucciones del JSON y guarda la respuesta.
+
+    entrada: «ficheros» (cada fichero de texto que pase el filtro), «git-log» (últimos
+    commits) o «git-diff» (cambios sin commitear). Sin «salida», la respuesta se enseña
+    en pantalla. Planificar NO llama al modelo: --simular sale gratis.
+    """
+
+    tipo = "ia"
+    necesita_ia = True
+    instrucciones: str = ""
+    entrada: str = "ficheros"
+    commits: int = 20
+    salida: str | None = None
+    max_caracteres: int = 12000
+
+    @classmethod
+    def _argumentos(cls, datos: dict[str, Any]) -> dict[str, Any]:
+        argumentos = {**super()._argumentos(datos), "instrucciones": datos["instrucciones"]}
+        for campo in ("entrada", "commits", "salida", "max_caracteres"):
+            if campo in datos:
+                argumentos[campo] = datos[campo]
+        return argumentos
+
+    def preparar(self, carpeta: Path, ahora: datetime, texto: str | None) -> list[Operacion]:
+        if self.entrada == "ficheros":
+            return self._preparar_ficheros(carpeta, ahora)
+        if self.entrada == "git-log":
+            argumentos = ["log", f"-n{self.commits}", "--date=short", "--pretty=format:%h %ad %s%n%b"]
+            descripcion = f"últimos {self.commits} commits"
+        else:
+            argumentos = ["diff", "HEAD"]
+            descripcion = "cambios sin commitear"
+        contenido = _git(carpeta, argumentos)
+        destino = self._destino(carpeta, ahora, nombre=slug(carpeta.resolve().name))
+        if not contenido.strip():
+            return [Operacion(carpeta, destino, omitida=f"no hay {descripcion}")]
+        return [self._operacion(carpeta, destino, contenido, descripcion)]
+
+    def _preparar_ficheros(self, carpeta: Path, ahora: datetime) -> list[Operacion]:
+        sufijo = self.salida[len("{nombre}"):] if self.salida and self.salida.startswith("{nombre}") else None
+        ops = []
+        for f in self.seleccionar(carpeta, ahora):
+            if sufijo and f.name.endswith(sufijo):
+                continue  # es una respuesta de esta misma acción
+            destino = self._destino(carpeta, ahora, nombre=f.stem, ext=f.suffix.lower())
+            try:
+                contenido = f.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                ops.append(Operacion(f, destino, omitida="no es un fichero de texto UTF-8"))
+                continue
+            if not contenido.strip():
+                ops.append(Operacion(f, destino, omitida="está vacío"))
+                continue
+            ops.append(self._operacion(f, destino, contenido, "texto"))
+        return ops
+
+    def _destino(self, carpeta: Path, ahora: datetime, nombre: str, ext: str = "") -> Path | None:
+        if not self.salida:
+            return None
+        return _ruta_en(carpeta, self.salida.format(nombre=nombre, slug=slug(nombre), fecha=ahora, ext=ext))
+
+    def _operacion(self, origen: Path, destino: Path | None, contenido: str, que: str) -> Operacion:
+        if destino is not None and destino.exists():
+            return Operacion(origen, destino, omitida="ya existe la respuesta")
+        recortado = len(contenido) > self.max_caracteres
+        detalle = f"{que}: {min(len(contenido), self.max_caracteres)} caracteres"
+        if recortado:
+            detalle += f", recortado de {len(contenido)}"
+        return Operacion(origen, destino, detalle=detalle, contenido=contenido[: self.max_caracteres])
+
+    def aplicar(self, operacion: Operacion, proveedor: "ProveedorIA | None" = None) -> str | None:
+        """Llama al modelo. Con «salida» guarda la respuesta; sin ella, la devuelve."""
+        assert proveedor is not None and operacion.contenido is not None
+        respuesta = proveedor.completar(self.instrucciones, operacion.contenido)
+        if operacion.destino is None:
+            return respuesta
+        operacion.destino.parent.mkdir(parents=True, exist_ok=True)
+        with operacion.destino.open("x", encoding="utf-8", newline="") as f:  # nunca sobrescribe
+            f.write(respuesta.rstrip() + "\n")
+        return None
+
+
+def _git(carpeta: Path, argumentos: list[str]) -> str:
+    """Ejecuta git con una lista de argumentos (nunca shell=True) y devuelve su salida."""
+    try:
+        resultado = subprocess.run(
+            ["git", "-C", str(carpeta), *argumentos],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+    except FileNotFoundError:
+        raise ErrorUso("Esta acción necesita git instalado.") from None
+    if resultado.returncode != 0:
+        raise ErrorUso(f"{carpeta} no es un repositorio git (o git ha fallado).")
+    return resultado.stdout
+
+
 def _ruta_en(carpeta: Path, ruta: str) -> Path:
     """Ruta del JSON: admite ~; si es relativa, se entiende dentro de la carpeta de trabajo."""
     ruta_p = Path(ruta).expanduser()
@@ -518,5 +625,6 @@ TIPOS: dict[str, type[Accion]] = {
         AccionCrear,
         AccionIncrementar,
         AccionComprimir,
+        AccionIA,
     )
 }

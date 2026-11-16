@@ -4,8 +4,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from typing import TYPE_CHECKING
+
 from tareas.acciones import Accion, Operacion
 from tareas.errores import ErrorUso
+
+if TYPE_CHECKING:
+    from tareas.ia import ProveedorIA
 
 
 @dataclass
@@ -28,6 +33,7 @@ class Plan:
 @dataclass
 class Resultado:
     hechas: list[Operacion] = field(default_factory=list)
+    respuestas: list[tuple[Operacion, str]] = field(default_factory=list)  # IA sin «salida»
     fallos: list[tuple[Operacion, str]] = field(default_factory=list)
 
     @property
@@ -58,15 +64,28 @@ class Motor:
         return Plan(accion, carpeta, operaciones)
 
     @staticmethod
-    def ejecutar(plan: Plan) -> Resultado:
-        """Aplica cada operación pendiente. Un fallo no detiene las demás."""
+    def ejecutar(plan: Plan, proveedor: "ProveedorIA | None" = None) -> Resultado:
+        """Aplica cada operación pendiente. Un fallo de un fichero no detiene los demás.
+
+        Las acciones de IA reciben el proveedor (si no se da, se crea desde el entorno).
+        Un IAError (sin red, sin clave) sí lo detiene todo: no tiene sentido seguir.
+        """
         assert not plan.accion.solo_lectura, "un informe no se ejecuta"
+        if plan.accion.necesita_ia and proveedor is None and plan.pendientes:
+            from tareas.ia import ProveedorIA
+
+            proveedor = ProveedorIA.desde_entorno()
         resultado = Resultado()
         for op in plan.pendientes:
             try:
-                plan.accion.aplicar(op)
+                if plan.accion.necesita_ia:
+                    respuesta = plan.accion.aplicar(op, proveedor)
+                else:
+                    respuesta = plan.accion.aplicar(op)
             except OSError as e:
                 resultado.fallos.append((op, e.strerror or str(e)))
             else:
                 resultado.hechas.append(op)
+                if respuesta is not None:
+                    resultado.respuestas.append((op, respuesta))
         return resultado
