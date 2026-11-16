@@ -15,7 +15,7 @@ description: Reglas del esquema de acciones.json de tareas. Cárgala siempre que
 | --- | --- | --- |
 | `nombre` | sí | minúsculas, números y guiones (`miniaturas-juegos`); único |
 | `descripcion` | sí | una frase que diga qué hace |
-| `tipo` | sí | `mover`, `copiar`, `renombrar`, `borrar`, `webp`, `informe`, `crear`, `incrementar` o `comprimir` |
+| `tipo` | sí | `mover`, `copiar`, `renombrar`, `borrar`, `webp`, `informe`, `crear`, `incrementar`, `comprimir` o `ia` |
 | `origen` | no | carpeta por defecto; admite `~`. La CARPETA de la orden manda sobre ella |
 | `filtro` | no | ver abajo; sin filtro le afectan todos los ficheros no ocultos |
 | `confirmar` | no | `true`/`false`. En `borrar` vale `true` si no se pone |
@@ -30,6 +30,7 @@ description: Reglas del esquema de acciones.json de tareas. Cárgala siempre que
 - `crear`: `modelo`, `destino`, `nombre_fichero` (obligatorios; `{n:02}` = número siguiente de la carpeta, `{slug}`, `{fecha:…}`, `{texto}`) y `reemplazar` (opcional: `{"texto viejo": "texto nuevo con {texto} o {fecha:%d/%m/%Y}"}`). Necesita `--texto`.
 - `incrementar`: `fichero` y `patron` con UN grupo `(\\d+)`, que es el número que sube.
 - `comprimir`: `destino` (obligatorio) y `nombre_fichero` (opcional, `{carpeta}`, `{fecha}`).
+- `ia`: `instrucciones` (obligatorio), `entrada` (`ficheros`, `git-log` o `git-diff`), `commits` (1-500), `salida` (opcional: sin ella, la respuesta va a pantalla; admite subcarpetas pero no `..`) y `max_caracteres` (100-1000000).
 - `nombre_fichero` no es `nombre`: `nombre` es siempre el de la acción.
 
 ## filtro

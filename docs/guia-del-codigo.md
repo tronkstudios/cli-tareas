@@ -30,6 +30,7 @@ código abierto al lado.
 | `config.py` | Desconfiar del JSON: `validar()` devuelve **todos** los errores con la ruta del campo (`acciones[1].filtro.extensiones`). | ¿Por qué no basta con `json.loads`? Porque un JSON bien escrito puede tener campos que faltan o valores absurdos. |
 | `motor.py` | Separar **qué** se haría (`Plan`) de **hacerlo** (`Resultado`). | ¿Por qué planificar primero? Así `--simular` enseña exactamente lo que luego se ejecuta. |
 | `acciones.py` | Una clase por tipo. Todas heredan de `Accion`. | ¿Por qué `desde_dict` es `@staticmethod`? Es una **fábrica**: mira `tipo` y crea la subclase adecuada sin que nadie tenga que conocerlas. |
+| `ia.py` | Hablar con el modelo de IA. `ProveedorIA` es abstracta; `ProveedorOpenAI` hace la petición HTTP con `urllib`. | ¿Por qué abstracta? El motor y las pruebas no saben qué modelo hay detrás: en las pruebas se usa `ProveedorFalso` y nunca hay red. |
 | `errores.py` | Excepciones propias, cada una con su `codigo_salida`. | ¿Por qué propias? Para distinguir «el usuario se equivocó» (mensaje y código) de «hay un bug» (traceback). |
 
 ### Ideas que salen en `acciones.py`
@@ -51,6 +52,28 @@ código abierto al lado.
 - **Multiplataforma**: `pathlib`, `expanduser()`, `encoding="utf-8"`,
   `shutil` en vez de `os.system`, y `newline=""` para no cambiar los saltos
   de línea CRLF/LF al reescribir `sw.js`.
+
+### Ideas que salen en la capa de IA
+
+- **Importación perezosa**: `ia.py` solo se importa dentro de `Motor.ejecutar()`
+  y de `comprobar-ia`. Sin red ni configuración, `tareas acciones`, `--simular`
+  y las acciones normales ni se enteran.
+- **Inyección de dependencias**: `Motor.ejecutar(plan, proveedor)` recibe el
+  proveedor. Si no se da, lo crea `ProveedorIA.desde_entorno()` (otra fábrica
+  estática). Las pruebas le pasan un `ProveedorFalso`.
+- **Planificar no llama al modelo**: `AccionIA.preparar()` solo lee los
+  ficheros o ejecuta `git log`/`git diff` y cuenta caracteres. La llamada,
+  que es lenta y cuesta, ocurre en `aplicar()`.
+- **`subprocess.run([...])` con lista**: nunca `shell=True`. Un nombre de
+  carpeta con espacios o comillas no puede inyectar órdenes.
+- **Visibilidad**: la clave se guarda en `self.__clave` (doble guion bajo:
+  Python le cambia el nombre) y `__repr__` no la enseña. Ningún mensaje de
+  error la incluye; hay una prueba que lo comprueba.
+- **Errores con nombre**: un 401 es `IASinConfigurar`; sin red, un 503 o un
+  timeout son `IASinConexion`. Un error de IA para toda la acción (no tiene
+  sentido seguir); un fichero que no se puede escribir solo ese fichero.
+- **`<think>…</think>`**: los modelos Qwen «piensan en voz alta»; se borra
+  antes de guardar la respuesta.
 
 ### Ideas que salen en `cli.py`
 
@@ -122,10 +145,37 @@ salida y el código.
 | `test_ejecutar_simular_y_de_verdad` | `--simular` no borra; sin `--si` y sin terminal se niega (código 2); con `--si` borra. |
 | `test_consola_cp1252_no_revienta_con_simbolos` | Lanza la CLI de verdad con la consola en cp1252 (como Windows) y sale con 0. |
 
+### `test_ia.py`
+
+Un servidor HTTP de mentira escucha en `127.0.0.1` y responde según el modelo
+pedido: bien, 503, 401 o algo que no es JSON. `ProveedorFalso` contesta sin
+red y apunta cada llamada.
+
+| Prueba | Qué comprueba la aserción |
+| --- | --- |
+| `test_sin_variables_es_ia_sin_configurar` | Sin variables ni `.env`: `IASinConfigurar` nombrando la que falta. |
+| `test_lee_el_env_de_la_carpeta_actual` | Lee `.env` y `repr()` del proveedor no contiene la clave. |
+| `test_respuesta_correcta_sin_el_pensamiento` | Quita `<think>…</think>` y espacios; manda la clave como `Bearer` y los mensajes `system` + `user`. |
+| `test_errores_del_servidor_con_mensaje_humano_y_sin_la_clave` | 503, 401 y JSON roto dan la excepción y el mensaje correctos, y ninguno contiene la clave. |
+| `test_sin_conexion` | Un puerto donde no escucha nadie: `IASinConexion` «No hay conexión». |
+| `test_simular_no_llama_al_modelo` | El plan existe, pero no se ha creado ninguna respuesta. |
+| `test_ficheros_crea_respuestas_y_no_se_resume_a_si_misma` | Crea `a.resumen.md`, no sobrescribe `b.resumen.md`, omite el PNG, no resume los `.resumen.md` y llama al modelo **una sola vez**. |
+| `test_recorta_textos_largos` | Avisa del recorte en el plan y al modelo le llegan 100 caracteres. |
+| `test_sin_salida_la_respuesta_vuelve_para_la_pantalla` | Sin `salida` no se crea ningún fichero y la respuesta vuelve en `Resultado.respuestas`. |
+| `test_git_log_manda_los_commits` | En un repo temporal, el mensaje del commit llega al modelo. |
+| `test_git_diff_sin_cambios_se_omite_y_con_cambios_se_manda` | Sin cambios se omite; con un cambio, el diff (`+dos`) llega al modelo. |
+| `test_git_fuera_de_un_repo_es_error_de_uso` | Fuera de un repo, `ErrorUso` (código 2). |
+| `test_validacion_de_la_accion_ia` | Detecta `instrucciones` que falta, `entrada` inválida, `commits` 0 y `..` en la salida. |
+| `test_comprobar_ia_sin_configurar` | Código 1, mensaje «Falta configurar» y ningún traceback. |
+| `test_sin_red_la_accion_ia_falla_en_una_linea_y_las_demas_siguen` | La de IA sale con 1 sin traceback ni clave; justo después, una acción normal funciona. |
+| `test_acciones_marca_las_de_ia` | `tareas acciones --json` marca `"ia": true` solo en la de IA. |
+
 ## Preguntas típicas de defensa
 
 - **¿Cómo añado una acción?** Editando `acciones.json` y `tareas validar`. No se toca el código.
 - **¿Y un tipo nuevo?** Clase en `acciones.py`, añadirla a `TIPOS`, sus campos en `config.py` y una prueba.
-- **¿Qué pasa si no hay red?** Nada: ninguna acción actual la usa.
-- **¿Dónde están las claves?** No hay. Cuando haya IA, en `.env`, que está en `.gitignore` desde el primer commit.
+- **¿Qué pasa si no hay red?** Las acciones de IA lo dicen en una línea y salen con código 1; las otras 10 funcionan igual porque `ia.py` ni se carga. `--simular` nunca llama al modelo.
+- **¿Dónde está la clave?** En `TAREAS_IA_CLAVE`, como variable de entorno o en un `.env` que está en `.gitignore` desde el primer commit. En el repo solo hay `.env.example` con valores falsos.
+- **¿Por qué no el SDK de OpenAI?** Una sola petición HTTP no lo justifica, y con `urllib` vale para cualquier servidor compatible (ADR 0002).
+- **¿Cómo cambio lo que hace una acción de IA?** Cambiando sus `instrucciones` en `acciones.json`.
 - **¿Por qué uv?** Instala Python, las dependencias y la herramienta como comando con una orden.

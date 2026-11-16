@@ -9,4 +9,4 @@
 7. **No hará:** subir nada a GitHub ni hacer commits, ni tocar `.git`; en la web solo cambia lo que dice una acción (p. ej., el número de `sw.js`).
 8. **Añadir una acción** = editar `acciones.json`, sin tocar el código.
 9. **Funciona** en Linux, Windows y macOS (Python 3.12 + Typer + uv).
-10. **Semana 3:** acciones con IA (p. ej., textos alternativos de las capturas) y modo sin red.
+10. **IA:** acciones con IA (CHANGELOG, mensajes de commit, resúmenes) cuyas instrucciones están en el JSON; sin red, todo lo demás sigue funcionando.

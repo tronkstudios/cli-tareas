@@ -57,6 +57,7 @@ uv tool install --editable .
 | `tareas listar [CARPETA] [--json]` | Tabla con nombre, tipo, tamaño y fecha. Por defecto, la carpeta actual. |
 | `tareas acciones [--json]` | Las acciones de `acciones.json`. |
 | `tareas validar` | Comprueba `acciones.json` y dice qué campo falla. |
+| `tareas comprobar-ia` | Comprueba que el modelo de IA está configurado y responde. |
 | `tareas ejecutar NOMBRE [CARPETA] --simular` | Enseña qué haría, sin tocar nada. |
 | `tareas ejecutar NOMBRE [CARPETA] --si` | La ejecuta sin preguntar (para scripts). |
 | `tareas ejecutar NOMBRE --texto "…"` | Título para las acciones que crean ficheros (`-t`). |
@@ -108,6 +109,66 @@ tareas ejecutar archivar-originales          # los PNG, fuera
 
 Y copias `webp/*.webp` a `img/juegos/` y `webp/mini/*.webp` a `img/juegos/mini/` de la web.
 
+## Acciones con IA
+
+Tres acciones usan un modelo de IA (los del centro o cualquier API compatible
+con OpenAI). Las instrucciones para el modelo están en `acciones.json`, no en
+el código.
+
+| Acción | Entrada | Qué hace |
+| --- | --- | --- |
+| `borrador-changelog` | últimos 30 commits | Borrador de entrada del CHANGELOG en `docs/borradores/`. |
+| `mensaje-commit` | cambios sin commitear | Propone un mensaje de commit, en pantalla. |
+| `resumir-documentos` | cada `.md`/`.txt` | Un `nombre.resumen.md` al lado de cada documento. |
+
+### Configurar el modelo
+
+```bash
+cp .env.example .env        # o en ~/.config/tareas/.env para usarlo desde cualquier carpeta
+nano .env                   # TAREAS_IA_URL, TAREAS_IA_MODELO, TAREAS_IA_CLAVE
+tareas comprobar-ia         # ✓ El modelo responde: OK
+```
+
+- `.env` está en `.gitignore`: **la clave nunca se sube**. También vale con
+  variables de entorno (`export TAREAS_IA_CLAVE=…`), que mandan sobre el `.env`.
+- Si el servidor usa un certificado propio (curl dice *self-signed certificate*),
+  indica el del centro en `TAREAS_IA_CA=~/.certs/centro.pem`. La verificación
+  nunca se desactiva.
+- `TAREAS_IA_ESPERA`: segundos máximos por respuesta (180 por defecto).
+
+### Sin red o sin modelo
+
+`--simular` nunca llama al modelo. Si falta la configuración, no hay red o el
+modelo está caído (HTTP 503), la acción lo explica en una línea y sale con
+código 1. Las otras 10 acciones funcionan igual: `ia.py` ni siquiera se carga.
+
+```text
+$ tareas ejecutar mensaje-commit
+Error: El modelo «Qwen38-DualSpark-low» no está disponible ahora mismo (HTTP 503). Prueba otro modelo o más tarde.
+```
+
+### Crear tu propia acción con IA
+
+```json
+{
+  "nombre": "ideas-de-juego",
+  "descripcion": "Propone mejoras para un minijuego a partir de sus notas",
+  "tipo": "ia",
+  "entrada": "ficheros",
+  "filtro": { "extensiones": [".md"] },
+  "instrucciones": "Lee las notas y propone 5 mejoras concretas…",
+  "salida": "{nombre}.ideas.md"
+}
+```
+
+| Campo | Para qué |
+| --- | --- |
+| `instrucciones` | Lo que se pide al modelo (obligatorio). |
+| `entrada` | `ficheros` (por defecto), `git-log` o `git-diff`. |
+| `commits` | Para `git-log`: cuántos (20 por defecto). |
+| `salida` | Fichero donde guardar la respuesta (`{nombre}`, `{slug}`, `{fecha}`, `{ext}`). Sin `salida`, se enseña en pantalla. |
+| `max_caracteres` | Recorta la entrada (12000 por defecto) y lo avisa en el plan. |
+
 ## acciones.json
 
 ```json
@@ -158,8 +219,9 @@ src/tareas/
 ├── cli.py       # interfaz Typer: órdenes, opciones, salida y códigos de salida
 ├── config.py    # leer y VALIDAR acciones.json
 ├── motor.py     # Motor: planificar (sin tocar nada) y ejecutar
-├── acciones.py  # una clase por tipo: mover, copiar, renombrar, borrar, webp, informe, crear, incrementar, comprimir
-└── errores.py   # TareasError, ErrorUso, ConfigError, AccionNoValida, AccionNoEncontrada
+├── acciones.py  # una clase por tipo: mover, copiar, renombrar, borrar, webp, informe, crear, incrementar, comprimir, ia
+├── ia.py        # ProveedorIA (abstracto) y ProveedorOpenAI: solo se carga si hace falta
+└── errores.py   # TareasError, ErrorUso, ConfigError, AccionNoValida, AccionNoEncontrada, IAError…
 ```
 
 ## Pruebas

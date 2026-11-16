@@ -25,6 +25,7 @@ pesos, copias, WebP, miniaturas, nombres para la web, vídeos, basura).
 - `src/tareas/motor.py`: `Motor.planificar()` (no toca el disco) y `Motor.ejecutar()`.
 - `src/tareas/acciones.py`: una clase por tipo (`mover`, `copiar`, `renombrar`, `borrar`, `webp`, `informe`, `crear`, `incrementar`, `comprimir`), registradas en `TIPOS`. Las que trabajan fichero a fichero implementan `planificar()`; las demás redefinen `preparar()`.
 - `src/tareas/config.py`: busca (`--config` → `./acciones.json` → el del usuario), lee y valida `acciones.json`; cada error empieza por la ruta del campo.
+- `src/tareas/ia.py`: `ProveedorIA` (abstracto) y `ProveedorOpenAI` (urllib, sin SDK). Solo se importa al usarlo. La clave solo se lee de `TAREAS_IA_CLAVE` (entorno o `.env`) y nunca sale en mensajes.
 - `src/tareas/errores.py`: `TareasError` (1), `ErrorUso` (2), `ConfigError` (3), `AccionNoValida`, `AccionNoEncontrada`.
 
 ## Normas
@@ -39,4 +40,5 @@ pesos, copias, WebP, miniaturas, nombres para la web, vídeos, basura).
 - Una acción nueva = solo `acciones.json` (usa `/nueva-accion`).
 - Prueba siempre en `~/pruebas-tareas`, nunca en la carpeta real de la web.
 - **No hagas commits ni push**: los hace la persona.
-- No leas ni escribas `.env`.
+- No leas ni escribas `.env`. Las pruebas de IA usan `ProveedorFalso` o un servidor local: nunca la red.
+- Nunca desactives la verificación TLS: para certificados propios, `TAREAS_IA_CA`.
