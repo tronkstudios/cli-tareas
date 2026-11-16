@@ -147,16 +147,22 @@ def listar_acciones(
     with _sin_traceback():
         conf = _cargar(ctx)
     if como_json:
-        datos = [{"nombre": a.nombre, "tipo": a.tipo, "descripcion": a.descripcion} for a in conf.acciones]
+        datos = [
+            {"nombre": a.nombre, "tipo": a.tipo, "ia": a.necesita_ia, "descripcion": a.descripcion}
+            for a in conf.acciones
+        ]
         typer.echo(json.dumps(datos, ensure_ascii=False, indent=2))
         return
     tabla = Table(title=escape(str(conf.ruta)), title_justify="left")
     tabla.add_column("Nombre", style="bold")
     tabla.add_column("Tipo")
+    tabla.add_column("IA", justify="center")
     tabla.add_column("Descripción")
     for a in conf.acciones:
-        tabla.add_row(escape(a.nombre), a.tipo, escape(a.descripcion))
+        tabla.add_row(escape(a.nombre), a.tipo, "[magenta]sí[/]" if a.necesita_ia else "", escape(a.descripcion))
     salida.print(tabla)
+    if any(a.necesita_ia for a in conf.acciones):
+        salida.print("[dim]Las acciones con IA necesitan el modelo configurado: tareas comprobar-ia[/]")
 
 
 @app.command()
@@ -165,6 +171,18 @@ def validar(ctx: typer.Context) -> None:
     with _sin_traceback():
         conf = _cargar(ctx)
     salida.print(f"[green]✓[/green] {escape(str(conf.ruta))} es válido: {len(conf.acciones)} acciones.")
+
+
+@app.command("comprobar-ia")
+def comprobar_ia() -> None:
+    """Comprueba que el modelo de IA está configurado y responde (nunca enseña la clave)."""
+    with _sin_traceback():
+        from tareas.ia import ProveedorIA
+
+        proveedor = ProveedorIA.desde_entorno()
+        salida.print(f"Probando {escape(proveedor.describir())}…")
+        respuesta = proveedor.completar("Responde solo con la palabra OK.", "¿Me oyes?")
+    salida.print(f"[green]✓[/green] El modelo responde: {escape(respuesta[:80])}")
 
 
 @app.command()
@@ -199,7 +217,13 @@ def ejecutar(
             salida.print("Cancelado: no se ha tocado nada.")
             return
 
-    resultado = Motor.ejecutar(plan)
+    if accion.necesita_ia:
+        salida.print(f"[magenta]Preguntando al modelo ({len(plan.pendientes)} peticiones)…[/]")
+    with _sin_traceback():
+        resultado = Motor.ejecutar(plan)
+    for op, respuesta in resultado.respuestas:
+        salida.rule("Respuesta del modelo" if op.origen.is_dir() else escape(_relativa(op.origen, plan.carpeta)))
+        salida.print(escape(respuesta), highlight=False)
     for op, motivo in resultado.fallos:
         errores.print(f"[red]✗[/red] {escape(op.origen.name)}: {escape(motivo)}")
     color = "green" if resultado.ok else "yellow"
@@ -227,7 +251,7 @@ def _mostrar_plan(plan: Plan, simulacion: bool) -> None:
         salida.print(f"{len(plan.operaciones)} ficheros.")
         return
     for op in plan.operaciones:
-        texto = _describir_operacion(op, plan.carpeta)
+        texto = _describir_operacion(op, plan.carpeta, accion.necesita_ia)
         if op.detalle:
             texto += f" [dim]({escape(op.detalle)})[/]"
         if op.omitida:
@@ -239,8 +263,11 @@ def _mostrar_plan(plan: Plan, simulacion: bool) -> None:
         salida.print("[yellow]Simulación: no se ha tocado nada.[/]")
 
 
-def _describir_operacion(op: Operacion, carpeta: Path) -> str:
+def _describir_operacion(op: Operacion, carpeta: Path, es_ia: bool = False) -> str:
     origen = escape(_relativa(op.origen, carpeta))
+    if es_ia:
+        entrada = "git de la carpeta" if op.origen.is_dir() else origen
+        return f"{entrada} → {escape(str(op.destino)) if op.destino else 'pantalla'}"
     if op.destino is None:
         return origen
     if op.origen.is_dir():
