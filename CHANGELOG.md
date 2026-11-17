@@ -1,5 +1,12 @@
 # Changelog
 
+## Sin publicar
+
+### Documentación
+- Prueba de la capa de IA con el modelo del centro (`Qwen38-DualSpark-low`):
+  `comprobar-ia` y las tres acciones de IA funcionan. Resultados en
+  `docs/prompts.md`, apartado 6.
+
 ## 1.1.1 · 16 de noviembre de 2026
 
 ### Cambiado

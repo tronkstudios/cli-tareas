@@ -108,4 +108,35 @@ hazme tú todo lo que falta del CLI
 - Aprendido de los errores reales: los 503 y el certificado propio salen en
   los mensajes de la CLI porque fueron justo los problemas que tuvimos.
 - Cambiado: _(rellenar)_
-- Pendiente: probarlo contra el servidor del centro cuando los modelos respondan.
+- Probado contra el servidor del centro el 17/11/2026 (ver el apartado 6).
+
+## 6. Prueba con el modelo del centro
+
+- **Fecha:** 17/11/2026
+- **Herramienta:** `tareas` 1.1.1 con `Qwen38-DualSpark-low` (servidor del centro)
+
+### Qué necesitábamos
+Comprobar que la capa de IA funciona con los modelos del centro, no solo
+con el servidor de mentira de las pruebas.
+
+### Cómo se configuró
+`~/.config/tareas/.env` (fuera del repo, con permisos 600) con
+`TAREAS_IA_URL`, `TAREAS_IA_MODELO`, `TAREAS_IA_CLAVE` (la misma que usa
+OpenCode) y `TAREAS_IA_CA` apuntando al certificado del centro.
+
+Errores que salieron por el camino y que la CLI explicó en una línea:
+- `El servidor de IA rechaza la clave (HTTP 403)`: la clave se había
+  guardado vacía.
+
+### Resultado (sobre una copia de la web en `~/pruebas-tareas`)
+- `tareas comprobar-ia` → `✓ El modelo responde: OK`.
+- `borrador-changelog` (30 commits, 4267 caracteres) → un CHANGELOG con
+  «Añadido», «Cambiado» y «Arreglado», escrito para quien visita la web y sin
+  inventar nada que no estuviera en los commits.
+- `mensaje-commit` → `README: añade línea en blanco al final del archivo`,
+  que era justo el cambio.
+- `resumir-documentos` (prompts 18 y 19) → dos resúmenes de 5 viñetas con
+  qué se necesitaba, qué se decidió y qué quedaba pendiente.
+
+### Qué hicimos con la respuesta
+- Aceptado: las instrucciones de las tres acciones se quedan como están.
